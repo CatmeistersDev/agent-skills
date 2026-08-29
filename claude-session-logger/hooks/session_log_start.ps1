@@ -30,7 +30,21 @@ try {
     $logFile = Join-Path $projDir "$sessionId.md"
 
     $now = [DateTime]::Now.ToString('yyyy-MM-ddTHH:mm:ss')
-    "`n## Session start - $now (source: $source)`n" | Add-Content -Path $logFile -Encoding UTF8
+    # On resume/fork, Claude Code 2.1.251+ also reports prompt-cache staleness.
+    # These fields are absent on a plain startup, so the line degrades cleanly.
+    $extra = ''
+    if ($null -ne $data.seconds_since_last_response) {
+        $secs = [int]$data.seconds_since_last_response
+        $idle = [TimeSpan]::FromSeconds($secs).ToString('c')
+        $tok  = 0
+        if ($null -ne $data.context_tokens) { $tok = [int]$data.context_tokens }
+        $usd  = 0.0
+        if ($null -ne $data.estimated_cache_write_usd) { $usd = [double]$data.estimated_cache_write_usd }
+        if ($data.prompt_cache_likely_expired) { $cache = 'cache EXPIRED' } else { $cache = 'cache likely warm' }
+        $extra = " - idle $idle, $cache, re-cache $('{0:N0}' -f $tok) tok ~`$$('{0:N4}' -f $usd)"
+    }
+
+    "`n## Session start - $now (source: $source)$extra`n" | Add-Content -Path $logFile -Encoding UTF8
 } catch {
     Write-ErrLog $_.Exception.ToString()
 }

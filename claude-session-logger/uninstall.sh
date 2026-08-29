@@ -18,12 +18,12 @@ backup_path="$SETTINGS_PATH.bak-preuninstall-$stamp"
 cp "$SETTINGS_PATH" "$backup_path"
 echo "OK: backed up settings.json to $backup_path"
 
-for evt in SessionStart PostToolUse; do
+for evt in SessionStart PostToolUse PreModelSwitch PostModelSwitch; do
     before_count="$(jq --arg evt "$evt" '(.hooks[$evt] // []) | length' "$SETTINGS_PATH")"
     tmp="$(mktemp)"
     jq --arg evt "$evt" '
         .hooks[$evt] = ((.hooks[$evt] // []) | map(select(
-            ((.hooks // []) | any((.command // "") | test("session_log_start\\.sh|session_log_track\\.sh"))) | not
+            ((.hooks // []) | any((.command // "") | test("session_log_start\\.sh|session_log_track\\.sh|session_log_model_switch\\.sh"))) | not
         )))
     ' "$SETTINGS_PATH" >"$tmp"
     mv "$tmp" "$SETTINGS_PATH"
@@ -35,7 +35,7 @@ jq -e '.' "$SETTINGS_PATH" >/dev/null 2>&1 || { echo "FAIL: settings.json failed
 echo "OK: wrote updated settings.json (hook entries removed)"
 
 if [[ -d "$HOOKS_DIR" ]]; then
-    rm -f "$HOOKS_DIR/session_log_start.sh" "$HOOKS_DIR/session_log_track.sh"
+    rm -f "$HOOKS_DIR/session_log_start.sh" "$HOOKS_DIR/session_log_track.sh" "$HOOKS_DIR/session_log_model_switch.sh"
     echo "OK: removed hook script files (session-logs data left intact)"
 fi
 

@@ -17,7 +17,7 @@ Write-Host "OK: backed up settings.json to $backupPath"
 
 $settings = (Get-Content -Path $SettingsPath -Raw -Encoding UTF8) | ConvertFrom-Json
 
-$scriptNames = @('session_log_start.ps1', 'session_log_track.ps1')
+$scriptNames = @('session_log_start.ps1', 'session_log_track.ps1', 'session_log_model_switch.ps1')
 
 function Block-ReferencesOurScripts($block) {
     foreach ($h in $block.hooks) {
@@ -32,7 +32,7 @@ function Block-ReferencesOurScripts($block) {
 }
 
 if (Get-Member -InputObject $settings -Name 'hooks' -MemberType NoteProperty) {
-    foreach ($evt in @('SessionStart','PostToolUse')) {
+    foreach ($evt in @('SessionStart','PostToolUse','PreModelSwitch','PostModelSwitch')) {
         if (Get-Member -InputObject $settings.hooks -Name $evt -MemberType NoteProperty) {
             $before = @($settings.hooks.$evt)
             $after  = @($before | Where-Object { -not (Block-ReferencesOurScripts $_) })
@@ -50,8 +50,9 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 Write-Host "OK: wrote updated settings.json (hook entries removed)"
 
 if (Test-Path $HooksDir) {
-    Remove-Item -Path (Join-Path $HooksDir 'session_log_start.ps1') -Force -ErrorAction SilentlyContinue
-    Remove-Item -Path (Join-Path $HooksDir 'session_log_track.ps1') -Force -ErrorAction SilentlyContinue
+    foreach ($name in $scriptNames) {
+        Remove-Item -Path (Join-Path $HooksDir $name) -Force -ErrorAction SilentlyContinue
+    }
     Write-Host "OK: removed hook script files (session-logs data left intact)"
 }
 
